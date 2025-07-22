@@ -102,8 +102,8 @@ This project uses **secure environment variables** to protect API credentials. Y
 
 ```
 📂 tableau-analytics-extensions-job-scraper/
-├── 📄 table_extension_job_search-tableau_only_SECURE.py    # Tableau Analytics Extension (production)
-├── 📄 table_extension_job_search-vscode_test_only_SECURE.py # VS Code testing version
+├── 📄 secure_tableau_script.py                # Tableau Analytics Extension (production)
+├── 📄 secure_vscode_script.py                 # VS Code testing version
 ├── 📄 config.py                               # 🔒 Secure credential loader
 ├── 📄 .env.template                           # 🔒 Template for your .env file
 ├── 📄 .env                                    # 🔒 Your private credentials (create from template)
@@ -111,14 +111,13 @@ This project uses **secure environment variables** to protect API credentials. Y
 ├── 📄 .gitignore                              # 🔒 Protects sensitive files
 ├── 📄 LICENSE                                 # MIT License
 ├── 📄 README.md                               # This guide
-├── 📄 SECURITY_UPGRADE_GUIDE.md               # Detailed security setup
 └── 📂 examples/
     ├── 📄 sample_output.csv                   # Example of collected data
     └── 📄 tableau_dashboard.twbx               # Sample Tableau workbook
 ```
 
 **🔒 Security Files:**
-- **Use `*_SECURE.py`** versions (never the old hardcoded versions)
+- **Use `secure_*.py`** versions (never the old hardcoded versions)
 - **Create `.env`** from `.env.template` with your real API key
 - **Never share** your `.env` file - it contains your private credentials
 
@@ -164,7 +163,7 @@ For users comfortable with Python, you can modify the secure scripts:
 
 ### **Test in VS Code First**
 ```bash
-python table_extension_job_search-vscode_test_only_SECURE.py
+secure_vscode_script.py
 ```
 
 **Expected Output:**
@@ -278,7 +277,7 @@ This enables:
 ## 🔒 **Security Best Practices**
 
 ### **✅ DO:**
-- Use the `*_SECURE.py` versions of scripts
+- Use the `secure_*.py` versions of scripts
 - Keep your `.env` file private and local
 - Share `.env.template` with others
 - Use environment variables for all sensitive data
@@ -291,7 +290,7 @@ This enables:
 
 ### **🔄 For Existing Users:**
 If you're upgrading from hardcoded credentials:
-1. Use the new `*_SECURE.py` scripts
+1. Use the new `secure_*.py` scripts
 2. Create `.env` file with your API key
 3. Stop using the old hardcoded versions
 4. Your functionality remains exactly the same
@@ -371,24 +370,5 @@ The updated video will cover:
 - ✅ Analytics Extensions configuration  
 - ✅ Script integration and testing
 - ✅ Building your first job market dashboard
-
----
-
-## 🏆 **What's New in v2.0**
-
-### **🔒 Security Upgrade**
-- **Environment variables**: API credentials now stored securely
-- **GitHub ready**: Safe to share publicly without exposing keys  
-- **Industry standard**: Follows professional development practices
-
-### **📦 Complete Package**
-- **Professional setup**: Requirements, license, gitignore included
-- **Better documentation**: Step-by-step security and setup guides
-- **Testing tools**: VS Code version for easy development and debugging
-
-### **🚀 Enhanced Experience**
-- **Easier configuration**: Change settings in `.env` file instead of code
-- **Better error handling**: Clear diagnostic information for troubleshooting
-- **Production ready**: Professional-grade code suitable for business use
 
 ---
