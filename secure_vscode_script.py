@@ -45,7 +45,7 @@ def get_job_data():
         
         # SEARCH PARAMETERS: What we want to search for - you can change these to find different jobs
         # You can also set these in your .env file to avoid changing code
-        search_keywords = Config.DEFAULT_SEARCH_KEYWORDS if hasattr(Config, 'DEFAULT_SEARCH_KEYWORDS') else "tableau"
+        search_keywords = getattr(Config, 'DEFAULT_SEARCH_KEYWORDS', 'tableau')
         search_location = Config.DEFAULT_SEARCH_LOCATION
         target_jobs = Config.DEFAULT_TARGET_JOBS
         max_pages = Config.DEFAULT_MAX_PAGES

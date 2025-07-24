@@ -1,185 +1,130 @@
+# TabPy-compatible Job Scraper for Tableau
 import pandas as pd
 import http.client
 import json
 import time
-from config import Config
+import os
+from dotenv import load_dotenv
 
-error_message = "Unknown error occurred"
-api_response_received = False
-jobs_found_count = 0
-pages_fetched = 0
+# Load .env file (if available)
+load_dotenv()
 
-try:
-    # 🔒 CREDENTIAL VALIDATION: Check API credentials before proceeding
+# Securely load environment variables
+JOB_API_KEY = os.getenv("JOB_API_KEY")
+DEFAULT_SEARCH_KEYWORDS = os.getenv("DEFAULT_SEARCH_KEYWORDS", "tableau")
+DEFAULT_SEARCH_LOCATION = os.getenv("DEFAULT_SEARCH_LOCATION", "us")
+DEFAULT_TARGET_JOBS = int(os.getenv("DEFAULT_TARGET_JOBS", "120"))
+DEFAULT_MAX_PAGES = int(os.getenv("DEFAULT_MAX_PAGES", "4"))
+
+# Validate credentials with helpful error message
+if not JOB_API_KEY:
+    df = pd.DataFrame({
+        'Status': ['CREDENTIAL_ERROR'],
+        'Issue': ['Missing JOB_API_KEY environment variable'],
+        'Solution': ['Set JOB_API_KEY when starting TabPy: JOB_API_KEY=your_key tabpy'],
+        'Timestamp': [pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')]
+    })
+    return df
+
+# Initialize variables
+website = 'jooble.org'
+search_keywords = DEFAULT_SEARCH_KEYWORDS
+search_location = DEFAULT_SEARCH_LOCATION
+target_jobs = DEFAULT_TARGET_JOBS
+max_pages = DEFAULT_MAX_PAGES
+all_jobs = []
+api_connected = False
+
+# Collect jobs from multiple pages
+for page in range(1, max_pages + 1):
     try:
-        Config.validate_required_credentials()
-    except ValueError as cred_error:
-        # Return diagnostic data if credentials are missing
-        diagnostic_data = {
-            'Status': ['CREDENTIAL_ERROR'],
-            'Issue': [f"Missing API credentials: {cred_error}"],
-            'Solution': ['Create .env file with JOB_API_KEY=your_api_key_here'],
-            'Required_Files': ['.env file with JOB_API_KEY'],
-            'Setup_Steps': ['1. Copy .env.template to .env', '2. Add your Jooble API key', '3. Refresh this data source'],
-            'Documentation': ['See project README for complete setup instructions'],
-            'Timestamp': [pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')]
+        conn = http.client.HTTPConnection(website)
+        headers = {"Content-type": "application/json"}
+        search_data = {
+            "keywords": search_keywords,
+            "location": search_location,
+            "page": page
         }
-        df = pd.DataFrame(diagnostic_data)
-    else:
-        # 🔒 SECURE API SETTINGS: Load from environment variables
-        website = 'jooble.org'
-        my_api_key = Config.JOB_API_KEY  # 🔒 Loaded securely from .env file
+        conn.request("POST", "/api/" + JOB_API_KEY, json.dumps(search_data), headers)
+        response = conn.getresponse()
+        response_data = json.loads(response.read().decode('utf-8'))
+        jobs_list = response_data.get("jobs", [])
+        conn.close()
         
-        # SEARCH PARAMETERS: Load from config or use defaults
-        search_keywords = getattr(Config, 'DEFAULT_SEARCH_KEYWORDS', 'tableau')
-        search_location = Config.DEFAULT_SEARCH_LOCATION
-        target_jobs = Config.DEFAULT_TARGET_JOBS
-        max_pages = Config.DEFAULT_MAX_PAGES
+        api_connected = True  # Mark that we successfully connected
         
-        all_jobs = []
-        
-        for page in range(1, max_pages + 1):
-            try:
-                web_connection = http.client.HTTPConnection(website)
-                headers = {"Content-type": "application/json"}
-                
-                search_data = {
-                    "keywords": search_keywords, 
-                    "location": search_location,
-                    "page": page
-                }
-                search_text = json.dumps(search_data)
-                
-                web_connection.request('POST', '/api/' + my_api_key, search_text, headers)
-                
-                response = web_connection.getresponse()
-                response_text = response.read().decode('utf-8')
-                api_response_received = True
-                pages_fetched = page
-                
-                response_data = json.loads(response_text)
-                jobs_list = response_data.get("jobs", [])
-                
-                web_connection.close()
-                
-                if jobs_list:
-                    all_jobs.extend(jobs_list)
-                    if len(all_jobs) >= target_jobs:
-                        break
-                else:
-                    break
-                    
-                if page < max_pages:
-                    time.sleep(1)
-                    
-            except Exception as page_error:
+        if jobs_list:
+            all_jobs.extend(jobs_list)
+            if len(all_jobs) >= target_jobs:
                 break
-        
-        jobs_found_count = len(all_jobs)
-        
-        if all_jobs:
-            df = pd.DataFrame(all_jobs)
-            required_columns = ['id', 'title', 'company', 'location', 'snippet', 'salary', 'type', 'source', 'link', 'updated']
-            
-            for column in required_columns:
-                if column not in df.columns:
-                    df[column] = 'N/A'
-            
-            df = df[required_columns]
-            df = df.fillna('N/A')
-            
-            for column in df.columns:
-                df[column] = df[column].astype(str)
-            
-            def extract_city_state(location_str):
-                try:
-                    location_str = str(location_str).strip()
-                    if ',' in location_str:
-                        parts = location_str.split(',')
-                        city = parts[0].strip()
-                        state = parts[-1].strip()
-                        return city, state
-                    else:
-                        return location_str, 'N/A'
-                except:
-                    return 'N/A', 'N/A'
-            
-            df[['city', 'state']] = df['location'].apply(lambda x: pd.Series(extract_city_state(x)))
-            df = df.drop_duplicates(subset=['id', 'title', 'company'], keep='first')
-            
-            final_columns = ['id', 'title', 'company', 'location', 'city', 'state', 'snippet', 'salary', 'type', 'source', 'link', 'updated']
-            df = df[final_columns]
-                
         else:
-            if api_response_received:
-                error_message = "API connected successfully but found 0 jobs for " + search_keywords + " in " + search_location + " across " + str(pages_fetched) + " pages. Try different search terms or location."
-            else:
-                error_message = "Failed to connect to the Jooble API. Check internet connection and API key."
+            break
             
-            diagnostic_data = {
-                'Status': ['ERROR'],
-                'Issue': [error_message],
-                'Search_Keywords': [search_keywords],
-                'Search_Location': [search_location],
-                'Target_Jobs': [str(target_jobs)],
-                'Pages_Attempted': [str(max_pages)],
-                'Pages_Fetched': [str(pages_fetched)],
-                'API_Response_Received': [str(api_response_received)],
-                'Jobs_Found': [str(jobs_found_count)],
-                'Suggestion': ['Check search terms, location, internet connection, or API key'],
-                'API_Key_Status': ['Loaded from environment variables'],
-                'Timestamp': [pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')],
-                'Next_Steps': ['Try broader search terms or different location codes (us, uk, ca, au, etc.)']
-            }
-            df = pd.DataFrame(diagnostic_data)
+        if page < max_pages:
+            time.sleep(1)
+            
+    except Exception as e:
+        break
 
-except Exception as e:
-    error_message = "Python error: " + str(e)
+# Handle no jobs found with enhanced diagnostics
+if not all_jobs:
+    if api_connected:
+        issue_msg = f"API connected but found 0 jobs for '{search_keywords}' in '{search_location}'"
+        solution_msg = "Try different search terms or location (us, uk, ca, au, etc.)"
+    else:
+        issue_msg = "Failed to connect to Jooble API"
+        solution_msg = "Check internet connection and API key validity"
     
-    diagnostic_data = {
-        'Status': ['PYTHON_ERROR'],
-        'Error_Type': [type(e).__name__],
-        'Error_Message': [str(e)],
-        'Search_Keywords': [search_keywords if 'search_keywords' in locals() else 'Not set'],
-        'Search_Location': [search_location if 'search_location' in locals() else 'Not set'],
-        'Target_Jobs': [str(target_jobs) if 'target_jobs' in locals() else '120'],
-        'Pages_Attempted': [str(max_pages) if 'max_pages' in locals() else '4'],
-        'Pages_Fetched': [str(pages_fetched)],
-        'API_Response_Received': [str(api_response_received)],
-        'Jobs_Found': [str(jobs_found_count)],
-        'Troubleshooting': ['Check: 1) Internet connection, 2) API key validity, 3) Search parameters'],
-        'Timestamp': [pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')],
-        'Common_Solutions': ['Verify TabPy connection, check firewall settings, or try simpler search terms'],
-        'Security_Note': ['API credentials now loaded securely from environment variables']
-    }
-    df = pd.DataFrame(diagnostic_data)
+    df = pd.DataFrame({
+        'Status': ['NO_JOBS_FOUND'],
+        'Issue': [issue_msg],
+        'Search_Keywords': [search_keywords],
+        'Search_Location': [search_location],
+        'Suggestion': [solution_msg],
+        'API_Connected': [str(api_connected)],
+        'Timestamp': [pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')]
+    })
+    return df
+
+# Process job results
+df = pd.DataFrame(all_jobs)
+
+# Ensure all required columns exist
+required_columns = ['id', 'title', 'company', 'location', 'snippet', 
+                    'salary', 'type', 'source', 'link', 'updated']
+for col in required_columns:
+    if col not in df.columns:
+        df[col] = 'N/A'
+
+df = df[required_columns]
+df = df.fillna('N/A')
+
+# Convert all columns to string
+for col in df.columns:
+    df[col] = df[col].astype(str)
+
+# Extract city/state
+def extract_city_state(location_str):
+    try:
+        location_str = str(location_str).strip()
+        if ',' in location_str:
+            parts = location_str.split(',')
+            return parts[0].strip(), parts[-1].strip()
+        return location_str, 'N/A'
+    except:
+        return 'N/A', 'N/A'
+
+df[['city', 'state']] = df['location'].apply(lambda x: pd.Series(extract_city_state(x)))
+
+# Remove duplicates
+df = df.drop_duplicates(subset=['id', 'title', 'company'], keep='first')
+
+# Final column order
+df = df[['id', 'title', 'company', 'location', 'city', 'state',
+         'snippet', 'salary', 'type', 'source', 'link', 'updated']]
 
 return df
 
-# 🔒 SECURITY UPGRADE - TABLEAU ANALYTICS EXTENSION VERSION
-# ========================================================
-# This script now loads API credentials securely from environment variables.
-# 
-# SETUP REQUIRED:
-# 1. Install: pip install python-dotenv
-# 2. Copy .env.template to .env  
-# 3. Add your API key: JOB_API_KEY=your_actual_key_here
-# 4. Place config.py in the same directory as this script
-# 5. Use this script in Tableau Analytics Extensions
-#
-# BENEFITS:
-# ✅ API key no longer visible in script
-# ✅ Safe to share publicly on GitHub
-# ✅ Easy to change credentials without editing code
-# ✅ Follows industry security best practices
-# ✅ Same functionality as original script
-#
-# CONFIGURATION:
-# You can set these in your .env file:
-# - JOB_API_KEY=your_key_here (required)
-# - DEFAULT_SEARCH_LOCATION=us (optional)
-# - DEFAULT_TARGET_JOBS=120 (optional) 
-# - DEFAULT_MAX_PAGES=4 (optional)
-#
-# If credentials are missing, script returns helpful diagnostic information
-# instead of failing silently.
+# 🔒 SETUP INSTRUCTIONS:
+# Start TabPy with: JOB_API_KEY=your_api_key tabpy
+# Optional: JOB_API_KEY=your_key DEFAULT_SEARCH_KEYWORDS="data analyst" tabpy

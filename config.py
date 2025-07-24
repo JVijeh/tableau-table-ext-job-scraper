@@ -25,7 +25,6 @@ class Config:
     DATABASE_URL = os.getenv('DATABASE_URL')
     
     # Default search parameters (fallback values if not specified)
-    DEFAULT_SEARCH_KEYWORDS = os.getenv('DEFAULT_SEARCH_KEYWORDS', 'tableau')
     DEFAULT_SEARCH_LOCATION = os.getenv('DEFAULT_SEARCH_LOCATION', 'us')
     DEFAULT_TARGET_JOBS = int(os.getenv('DEFAULT_TARGET_JOBS', '120'))
     DEFAULT_MAX_PAGES = int(os.getenv('DEFAULT_MAX_PAGES', '4'))
