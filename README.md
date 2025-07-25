@@ -4,7 +4,6 @@
 
 Transform manual job data collection into an automated, refreshable Tableau data source using Analytics Extensions. This script connects to job APIs, cleans the data, and delivers it to Tableau with enhanced geographic fields - all without leaving your Tableau workflow.
 
-![Tableau Job Dashboard Preview](https://via.placeholder.com/800x400/1f77b4/ffffff?text=Your+Job+Dashboard+Here)
 
 ## 🔒 **Security First**
 
@@ -363,7 +362,7 @@ This project is open source under the MIT License. See `LICENSE` file for detail
 
 ## 🎬 **Video Tutorial**
 
-📺 **Watch the 5-minute walkthrough**: [YouTube Tutorial Link] *(Coming Soon)*
+📺 **Watch the ~10-minute tutorial**: [https://youtu.be/fODpiOnVmcg]
 
 The updated video will cover:
 - ✅ Secure credential setup with `.env` files
